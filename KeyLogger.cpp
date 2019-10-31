@@ -4,12 +4,14 @@
 #include<vector>
 #include<iterator>
 #include<regex>
+#include <cstring>
+#include <linux/input.h>
 using namespace std;
 
-int main(){
+string getEventKeyBoard(){
 	fstream DeviceData;
-	string temp,HandlerTag="H: Handlers=",EVTag="B: EV=",KeyBrdEVTag="EV=120013",event,filePath;
-	int HandlerTagLen,EVTagLen,KeyBrdEVTagLen,i;
+	string temp,HandlerTag="H: Handlers=",EVTag="B: EV=",KeyBrdEVTag="EV=120013",event;
+	int HandlerTagLen,EVTagLen,KeyBrdEVTagLen,iterator;
 	vector<string> HandlerEVData;
 	DeviceData.open("/proc/bus/input/devices",ios::in);
 	HandlerTagLen=HandlerTag.length();
@@ -29,11 +31,10 @@ int main(){
 			}
 		}while(!DeviceData.eof());
 
-		for(i=0;i<HandlerEVData.size();i++){
-			if(HandlerEVData[i].length()>=KeyBrdEVTagLen){
-				if(HandlerEVData[i].substr(0,KeyBrdEVTagLen).compare(0,KeyBrdEVTagLen,KeyBrdEVTag)==0){
-					temp = HandlerEVData[i-1];
-					//cout << temp << endl;
+		for(iterator=0;iterator<HandlerEVData.size();iterator++){
+			if(HandlerEVData[iterator].length()>=KeyBrdEVTagLen){
+				if(HandlerEVData[iterator].substr(0,KeyBrdEVTagLen).compare(0,KeyBrdEVTagLen,KeyBrdEVTag)==0){
+					temp = HandlerEVData[iterator-1];
 					break;
 				}
 			}
@@ -42,17 +43,40 @@ int main(){
 		regex r("event[0-9]");
 		smatch m;
 		regex_search(temp,m,r);
-
-		for(auto x:m){
-			event=x;
-		}
-		
-		filePath = "dev/input/"+event;
-		cout << filePath << endl;
+		event = m[0];
 	}
 	else{
 		cout << "File Cannot be Opened" << endl;
+		event="";
 	}
 	HandlerEVData.clear();
 	DeviceData.close();
+	return event;
+}
+
+void captureKeyBoardData(string path){
+	fstream keyStrokeData;
+	input_event keyData;
+	int iterator,sizeOfEvent=sizeof(keyData);
+	char tempData[sizeOfEvent];
+	keyStrokeData.open(path,ios::in);
+	if(keyStrokeData){
+		keyStrokeData.read(tempData,sizeOfEvent);
+		memcpy(&keyData,tempData,sizeOfEvent);
+		cout << keyData.code << endl;
+	}
+	else
+		cout << "Could not open KeyBoard Data" << endl;
+
+}
+
+int main(){
+	string filePath,eventNum;
+	eventNum = getEventKeyBoard();
+	if(eventNum.length()>0){
+		filePath = "/dev/input/" + eventNum;
+		captureKeyBoardData(filePath);
+	}
+	else
+		cout << "Could not fetch keyboard event!!" << endl;
 }
